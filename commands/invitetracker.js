@@ -5,6 +5,3 @@ module.exports ={
         message.channel.send('pong!');
     }
 }
-const discount= ()=>{
-    return 0
-}

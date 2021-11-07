@@ -3,6 +3,7 @@ require('dotenv').config()
 const Discord = require('discord.js');
 const client = new Discord.Client({intents:["GUILDS","GUILD_MESSAGES", "GUILD_INVITES"]})
 const prefix = "!cw"
+const adventurerCount = 1;
 
 const fs = require('fs');
 
@@ -20,6 +21,7 @@ client.once('ready', ()=>{
 })
 client.on('messageCreate',async msg => {
     if(!msg.content.startsWith(prefix) || msg.author.bot) return;
+    if(msg.channel.name != "claim-invites") return
     const userID = msg.author.id;
     const username = msg.author.username;
     const usertag = msg.author.tag;
@@ -45,7 +47,7 @@ client.on('messageCreate',async msg => {
         filteredarray.forEach(user => {
             inviteCount += user['invites']
         });
-        if(inviteCount >= 1){
+        if(inviteCount >= adventurerCount){
             let role = msg.guild.roles.cache.find(role => role.name === "role1")
             if(!role) return;
             let member = msg.guild.members.cache.get(userID);
