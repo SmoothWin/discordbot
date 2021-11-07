@@ -4,6 +4,7 @@ const Discord = require('discord.js');
 const client = new Discord.Client({intents:["GUILDS","GUILD_MESSAGES", "GUILD_INVITES"]})
 const prefix = "!cw"
 const adventurerCount = 1;
+const maxAmountAdventurer = 1;
 
 const fs = require('fs');
 
@@ -30,30 +31,9 @@ client.on('messageCreate',async msg => {
     args.shift();
     console.log(args)
     const command = args.shift().toLowerCase();
-    if (command === 'ping') {
-      client.commands.get('ping').execute(msg, args);
-    }
     if(command === 'inviterole'){
-        let inviteCount = 0;
         let invites = await client.guilds.cache.get(msg.guild.id).invites.fetch()
-        let invitesJson = invites.toJSON()
-        let arrayofusers = []
-        invitesJson.forEach(i=>{
-            let user = {"id":i['inviter']['id'],"username":i['inviter']['username'],"invites":i['uses']};
-            arrayofusers.push(user);
-        })
-        let filteredarray = arrayofusers.filter(users=>users['id'] == userID);
-        console.log(filteredarray)
-        filteredarray.forEach(user => {
-            inviteCount += user['invites']
-        });
-        if(inviteCount >= adventurerCount){
-            let role = msg.guild.roles.cache.find(role => role.name === "role1")
-            if(!role) return;
-            let member = msg.guild.members.cache.get(userID);
-            console.log(member)
-            member.roles.add(role)
-        }
+        client.commands.get('inviterole').execute(msg, invites, adventurerCount, maxAmountAdventurer, userID, username, usertag);
     }
   });
 
