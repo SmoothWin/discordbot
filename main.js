@@ -54,7 +54,7 @@ client.on('guildMemberAdd', async member=>{
         console.log(err);
     }
 })
-client.on('inviteCreate', async invite => guildInvites.set(invite.guild.id,await invite.guild.invites.fetch()))
+client.on('inviteCreate', async invite => {await guildInvites.set(invite.guild.id, invite.guild.invites)})
 
 client.on('messageCreate',async msg => {
     if(!msg.content.startsWith(prefix) || msg.author.bot) return;
