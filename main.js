@@ -1,11 +1,10 @@
 
 require('dotenv').config()
 const Discord = require('discord.js');
-const client = new Discord.Client({intents:["GUILDS","GUILD_MESSAGES", "GUILD_INVITES", "GUILD_MEMBERS", "GUILD_INVITES"]})
+const client = new Discord.Client({intents:["GUILDS","GUILD_MESSAGES", "GUILD_INVITES", "GUILD_MEMBERS"]})
 const prefix = "!cw"
 const adventurerCount = 1;
 const maxAmountAdventurer = 1;
-const guildInvites = new Map();
 
 const fs = require('fs');
 
@@ -18,43 +17,34 @@ for(const file of commandFiles){
     client.commands.set(command.name, command);
 }
 
-client.once('ready', async ()=>{
-    console.log('Crypture Bot is online')
-    client.guilds.cache.forEach(async guild=>{
-        try{
-        let invites = await guild.invites.fetch();
-        invites.map(invites => guildInvites.set(guild.id, invites));
-        }catch(e){
-            console.log(err)
-        }
+
+client.invites = {}
+
+client.on('ready', () => {
+    client.guilds.cache.each(async guild => { //on bot start, fetch all guilds and fetch all invites to store
+        let guildInvites = await guild.invites.fetch()
+        guildInvites.map(x => {
+                client.invites[x.code] = x.uses
+        })
     })
 })
-client.on('guildMemberAdd', async member=>{
-    const cachedInvites = await guildInvites.get(member.guild.id);
-    console.log(cachedInvites['uses']);
-    const newInvites = await member.guild.invites.fetch()
-    guildInvites.set(member.guild.id, newInvites);
-    try{
-        const usedInvite = newInvites.find(inv => cachedInvites['uses'] < inv.uses)
-        console.log(usedInvite)
-        const embed = new Discord.MessageEmbed()
-            .setDescription(`${member.user.tag} is the ${member.guild.memberCount} to join.\n 
-            Joined using ${usedInvite.inviter.tag}\n
-            Number of uses: ${usedInvite.uses}`)
-            .setTimestamp()
-            .setThumbnail(`${member.user.displayAvatarURL()}`)
-            .setTitle(`${usedInvite.url}`)
 
-        const welcomeChannel = member.guild.channels.cache.find(channel=> channel.name.toLowerCase() === 'general'||
-        channel.type === 'GUILD_TEXT')
-        if(welcomeChannel){
-            welcomeChannel.send({embeds:[embed]})
-        }
-    }catch(err){
-        console.log(err);
-    }
+client.on('inviteCreate', (invite) => { //if someone creates an invite while bot is running, update store
+    client.invites[invite.code] = invite.uses
 })
-client.on('inviteCreate', invite => {guildInvites.set(invite.guild.id, invite.guild.invites)})
+
+client.on('guildMemberAdd', async (member) => {
+    const channel = member.guild.channels.cache.get('CHANNEL_ID');
+    let invites = await member.guild.invites.fetch()
+    invites.map(guildInvites => { //get all guild invites
+            if(guildInvites.uses != client.invites[guildInvites.code] && guildInvites.code != guildInvites.guild.vanityURLCode) { //if it doesn't match what we stored:
+                const welcomeChannel = member.guild.channels.cache.find(channel=> channel.name.toLowerCase() === 'general'||
+                channel.type === 'GUILD_TEXT')
+                welcomeChannel.send(`Welcome ${member.user.tag} Invited By ${guildInvites.inviter.tag}`)
+                client.invites[guildInvites.code] = guildInvites.uses
+            }
+    })
+})
 
 client.on('messageCreate',async msg => {
     if(!msg.content.startsWith(prefix) || msg.author.bot) return;
