@@ -18,7 +18,7 @@ for(const file of commandFiles){
     client.commands.set(command.name, command);
 }
 
-client.once('ready', ()=>{
+client.once('ready', async ()=>{
     console.log('Crypture Bot is online')
     client.guilds.cache.forEach(async guild=>{
         try{
@@ -30,7 +30,7 @@ client.once('ready', ()=>{
     })
 })
 client.on('guildMemberAdd', async member=>{
-    const cachedInvites = guildInvites.get(member.guild.id);
+    const cachedInvites = await guildInvites.get(member.guild.id);
     console.log(cachedInvites['uses']);
     const newInvites = await member.guild.invites.fetch()
     guildInvites.set(member.guild.id, newInvites);
@@ -54,7 +54,7 @@ client.on('guildMemberAdd', async member=>{
         console.log(err);
     }
 })
-client.on('inviteCreate', async invite => {await guildInvites.set(invite.guild.id, invite.guild.invites)})
+client.on('inviteCreate', invite => {guildInvites.set(invite.guild.id, invite.guild.invites)})
 
 client.on('messageCreate',async msg => {
     if(!msg.content.startsWith(prefix) || msg.author.bot) return;
