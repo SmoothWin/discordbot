@@ -6,6 +6,7 @@ const prefix = "!cw"
 const adventurerCount = 1;
 const maxAmountAdventurer = 1;
 
+client.login(process.env.TOKEN);
 const fs = require('fs');
 
 client.commands = new Discord.Collection();
@@ -21,6 +22,7 @@ for(const file of commandFiles){
 client.invites = {}
 
 client.on('ready', () => {
+    console.log("started bot")
     client.guilds.cache.each(async guild => { //on bot start, fetch all guilds and fetch all invites to store
         let guildInvites = await guild.invites.fetch()
         guildInvites.map(x => {
@@ -34,7 +36,6 @@ client.on('inviteCreate', (invite) => { //if someone creates an invite while bot
 })
 
 client.on('guildMemberAdd', async (member) => {
-    const channel = member.guild.channels.cache.get('CHANNEL_ID');
     let invites = await member.guild.invites.fetch()
     invites.map(guildInvites => { //get all guild invites
             if(guildInvites.uses != client.invites[guildInvites.code] && guildInvites.code != guildInvites.guild.vanityURLCode) { //if it doesn't match what we stored:
@@ -63,5 +64,3 @@ client.on('messageCreate',async msg => {
         client.commands.get('inviterole').execute(msg, invites, adventurerCount, maxAmountAdventurer, userID, username, usertag);
     }
   });
-
-client.login(process.env.TOKEN);
