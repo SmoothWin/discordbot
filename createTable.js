@@ -18,7 +18,10 @@ con.connect(function(err) {
                   invited varchar(255) NOT NULL,
                   PRIMARY KEY (id)
                   )`, (err, result) =>{
-                    if(err) throw err;
+                    if(err.code == "ER_TABLE_EXISTS_ERROR") {
+                      console.error("Table 'invite' already exists")
+                      return
+                      }
                     console.log("Table created")
                   })
     con.end();
