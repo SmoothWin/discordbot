@@ -91,9 +91,6 @@ client.on('guildMemberAdd', async (member) => {
 })
 
 client.on('guildMemberRemove', async (member) =>{
-        let invites = await member.guild.invites.fetch()
-        let filteredInvites = invites.filter(x=>x.inviter == member.user.id)
-        filteredInvites.forEach(x=>x.delete())
     console.log("ok")
     sqlCon.query({ // in order to set the onserver to false when the user leaves
         sql: 'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true',
@@ -102,16 +99,16 @@ client.on('guildMemberRemove', async (member) =>{
         if(err) return
         console.log(result)
     })
-    // sqlCon.query({
-    //     sql: 'DELETE FROM invite WHERE inviter = ?',
-    //     timeout: 1000
-    // },[member.user.id], async (err,result) =>{
-    //     if(err) return
-    //     console.log(result)
-    //     // let invites = await member.guild.invites.fetch()
-    //     // console.log(invites)
-        
-    // })
+    sqlCon.query({
+        sql: 'DELETE FROM invite WHERE inviter = ?',
+        timeout: 1000
+    },[member.user.id], async (err,result) =>{
+        if(err) return
+        console.log(result)
+        let invites = await member.guild.invites.fetch()
+        let filteredInvites = invites.filter(x=>x.inviter == member.user.id)
+        filteredInvites.forEach(x=>x.delete())
+    })
 })
 client.on('messageCreate',async msg => {
     if(!msg.content.startsWith(prefix) || msg.author.bot) return;
