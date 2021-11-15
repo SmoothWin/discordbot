@@ -16,8 +16,10 @@ con.connect(function(err) {
                   id int NOT NULL AUTO_INCREMENT,
                   inviter varchar(255),
                   invited varchar(255) NOT NULL,
+                  onserver BOOLEAN DEFAULT TRUE,
                   PRIMARY KEY (id)
                   )`, (err, result) =>{
+                    console.log(err)
                     if(err.code == "ER_TABLE_EXISTS_ERROR") {
                       console.error("Table 'invite' already exists")
                       return

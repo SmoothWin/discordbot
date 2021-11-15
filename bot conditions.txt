@@ -1,3 +1,3 @@
-fake is when user is not on server since 48hrs(fake)
+fake is when user is not on server since 48hrs(fake) 1week better
 check if user invited left the server(left)
 actual invites is (uses - fake - check)

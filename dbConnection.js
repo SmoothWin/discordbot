@@ -8,8 +8,7 @@ const con = mysql.createPool({
     password:process.env.DB_SECRET,
     database:process.env.DB_DB
 })
-
-con.connect(function(err){
+con.getConnection(function(err){
     if(err) throw err;
     console.log(`Connected to sql DB`)
 });
