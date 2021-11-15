@@ -19,12 +19,23 @@ con.connect(function(err) {
                   onserver BOOLEAN DEFAULT TRUE,
                   PRIMARY KEY (id)
                   )`, (err, result) =>{
-                    console.log(err)
-                    if(err.code == "ER_TABLE_EXISTS_ERROR") {
+                    if(err) {
                       console.error("Table 'invite' already exists")
                       return
                       }
                     console.log("Table created")
                   })
+      con.query(`CREATE TABLE invite_count (
+                    id int NOT NULL AUTO_INCREMENT,
+                    discordid VARCHAR(255) NOT NULL UNIQUE,
+                    invite_count int DEFAULT 0,
+                    PRIMARY KEY (id)
+                    )`, (err, result) =>{
+                      if(err) {
+                        console.error("Table 'invite_count' already exists")
+                        return
+                        }
+                      console.log("Table created")
+                    })
     con.end();
 });

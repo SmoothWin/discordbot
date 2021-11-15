@@ -4,7 +4,7 @@ const Discord = require('discord.js');
 const sqlCon = require('./dbConnection.js')
 const client = new Discord.Client({intents:["GUILDS","GUILD_MESSAGES", "GUILD_INVITES", "GUILD_MEMBERS"]})
 const prefix = "!cw"
-const explorerRequiredInviteCount = 1; //set to 20
+const explorerRequiredInviteCount = 2; //set to 20
 
 client.login(process.env.TOKEN);
 const fs = require('fs');
@@ -23,12 +23,18 @@ client.invites = {}
 
 client.on('ready', () => {
     console.log("started bot")
+    try{
+        client.user.setActivity('Crypture World', {type:'PLAYING'})
+    
     client.guilds.cache.each(async guild => { //on bot start, fetch all guilds and fetch all invites to store
         let guildInvites = await guild.invites.fetch()
         guildInvites.map(x => {
                 client.invites[x.code] = x.uses
         })
     })
+        }catch(e){
+            console.log(err)
+        }
 })
 
 client.on('inviteCreate', (invite) => { //if someone creates an invite while bot is running, update store
@@ -42,88 +48,101 @@ client.on('guildMemberAdd', async (member) => {
             if(guildInvites.uses != client.invites[guildInvites.code] && guildInvites.code != guildInvites.guild.vanityURLCode) { //if it doesn't match what we stored:
                 client.invites[guildInvites.code] = guildInvites.uses
                 inviterID = guildInvites.inviter.id;
-                
-                
-                   
                 sqlCon.query({
                     sql: 'INSERT INTO invite (inviter, invited) VALUES (?,?)',
-                    timeout: 1000
+                    timeout: 10000
                 }, [inviterID, member.user.id], (err)=>{
                     if(err) return;
-                            
                 })
-                
-                
+                sqlCon.query({
+                    sql: 'INSERT INTO invite_count (discordid) VALUES (?)',
+                    timeout: 10000
+                }, [inviterID], (err)=>{
+                    if(err) return;     
+                });
+                sqlCon.query({
+                    sql:'UPDATE invite_count set invite_count = (invite_count+1) WHERE discordid = ?',
+                    timeout:10000
+                },[inviterID], (err, result)=>{
+                    if(err) return
+                })
             }
     })
+    if(inviterID == null) return;
         const explorer = "EXPLORER";
         let inviteCount = 0;
-        let invitesJson = invites.toJSON()
-        let arrayofusers = []
-        invitesJson.forEach(i=>{
-            let user = {"id":i['inviter']['id'],"username":i['inviter']['username'],"invites":i['uses']};
-            arrayofusers.push(user);
+        sqlCon.query({
+            sql:'SELECT invite_count FROM invite_count where discordid = ?',
+            timeout:10000
+        },[inviterID], async (err, result)=>{
+            if(err) return
+            console.log(result[0])
+            inviteCount = (typeof result[0] == "undefined")?null:result[0]['invite_count']
+            console.log(inviteCount)
         })
-        let filteredarray = arrayofusers.filter(users=>users['id'] == inviterID);
-        console.log(filteredarray)
-        filteredarray.forEach(user => {
-            inviteCount += user['invites']
-        });
+
         let roleExplorer = member.guild.roles.cache.find(role => role.name === explorer)
         if(!roleExplorer) return;
         let roleIDExplorer = roleExplorer.id;
 
         let user = (await member.guild.members.fetch()).get(inviterID);
-
         if(!(user.toJSON()['roles'].includes(roleIDExplorer))){
             sqlCon.query({
-                sql: 'SELECT * FROM invite WHERE inviter = ? and onserver = FALSE',
-                timeout: 1000
-            }, [inviterID], (err, result)=>{
-                if(err) return;
-                let fakeInviteCount = result.length
-                if(inviteCount >= (explorerRequiredInviteCount - fakeInviteCount))
-                    user.roles.add(roleExplorer)
-                return
-            })
-            
-        }
+                    sql: 'SELECT * FROM invite WHERE inviter = ? and onserver = FALSE',
+                    timeout: 10000
+                }, [inviterID], (err, result)=>{
+                    if(err) return;
+                    let fakeInviteCount = result.length
+                    console.log("Invite Count: "+inviteCount)
+                    console.log("Fake Invite Count: "+fakeInviteCount)
+                    console.log(inviteCount-fakeInviteCount)
+                    if((inviteCount-fakeInviteCount) >= explorerRequiredInviteCount )
+                        user.roles.add(roleExplorer)
+                    return
+                })
+                
+            }
+        // let invitesJson = invites.toJSON()
+        // let arrayofusers = []
+        // invitesJson.forEach(i=>{
+        //     let user = {"id":i['inviter']['id'],"username":i['inviter']['username'],"invites":i['uses']};
+        //     arrayofusers.push(user);
+        // })
+        // let filteredarray = arrayofusers.filter(users=>users['id'] == inviterID);
+        // console.log(filteredarray)
+        // filteredarray.forEach(user => {
+        //     inviteCount += user['invites']
+        // });
+        
 })
 
 client.on('guildMemberRemove', async (member) =>{
     console.log("ok")
     sqlCon.query({ // in order to set the onserver to false when the user leaves
         sql: 'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true',
-        timeout: 1000
+        timeout: 10000
     }, [member.user.id], (err, result)=>{
         if(err) return
         console.log(result)
     })
-    sqlCon.query({
-        sql: 'DELETE FROM invite WHERE inviter = ?',
-        timeout: 1000
-    },[member.user.id], async (err,result) =>{
-        if(err) return
-        console.log(result)
-        let invites = await member.guild.invites.fetch()
-        let filteredInvites = invites.filter(x=>x.inviter == member.user.id)
-        filteredInvites.forEach(x=>x.delete())
-    })
+    let invites = await member.guild.invites.fetch()
+    let filteredInvites = invites.filter(x=>x.inviter == member.user.id)
+    filteredInvites.forEach(x=>x.delete())
 })
-client.on('messageCreate',async msg => {
-    if(!msg.content.startsWith(prefix) || msg.author.bot) return;
-    if(msg.channel.name != "claim-invites") return
-    const userID = msg.author.id;
-    const username = msg.author.username;
-    const usertag = msg.author.tag;
-    console.log("Message from user "+ usertag);
-    const args = msg.content.slice(prefix.length).split(/ +/)
-    args.shift();
-    console.log(args)
-    const command = args.shift().toLowerCase();
-    if(command === 'inviterole'){
-        let invites = await client.guilds.cache.get(msg.guild.id).invites.fetch()
-        console.log(invites)
-        client.commands.get('inviterole').execute(msg, invites, adventurerCount, maxAmountAdventurer, userID, username, usertag);
-    }
-  });
+// client.on('messageCreate',async msg => {
+//     if(!msg.content.startsWith(prefix) || msg.author.bot) return;
+//     if(msg.channel.name != "claim-invites") return
+//     const userID = msg.author.id;
+//     const username = msg.author.username;
+//     const usertag = msg.author.tag;
+//     console.log("Message from user "+ usertag);
+//     const args = msg.content.slice(prefix.length).split(/ +/)
+//     args.shift();
+//     console.log(args)
+//     const command = args.shift().toLowerCase();
+//     if(command === 'inviterole'){
+//         let invites = await client.guilds.cache.get(msg.guild.id).invites.fetch()
+//         console.log(invites)
+//         client.commands.get('inviterole').execute(msg, invites, adventurerCount, maxAmountAdventurer, userID, username, usertag);
+//     }
+//   });
