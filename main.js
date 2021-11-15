@@ -4,7 +4,7 @@ const Discord = require('discord.js');
 const sqlCon = require('./dbConnection.js')
 const client = new Discord.Client({intents:["GUILDS","GUILD_MESSAGES", "GUILD_INVITES", "GUILD_MEMBERS"]})
 const prefix = "!cw"
-const explorerRequiredInviteCount = 2; //set to 20
+const explorerRequiredInviteCount = 1; //set to 20
 
 client.login(process.env.TOKEN);
 const fs = require('fs');
