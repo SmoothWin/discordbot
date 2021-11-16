@@ -5,7 +5,7 @@ const sqlCon = require('./dbConnection.js')
 const client = new Discord.Client({intents:["GUILDS","GUILD_MESSAGES", "GUILD_INVITES", "GUILD_MEMBERS"]})
 const prefix = "!cw"
 const explorerRequiredInviteCount = 1; //set to 20
-
+const validAccountThreshold = process.env.FRESH_THRESHOLD;
 client.login(process.env.TOKEN);
 const fs = require('fs');
 
@@ -57,6 +57,7 @@ client.on('inviteCreate', (invite) => { //if someone creates an invite while bot
 
 client.on('guildMemberAdd', async (member) => {
     let invites = await member.guild.invites.fetch()
+    if(Date.now()-msg.member.user.createdTimestamp < validAccountThreshold) return;
     let inviterID = null;
     invites.map(guildInvites => { //get all guild invites
             if(guildInvites.uses != client.invites[guildInvites.code] && guildInvites.code != guildInvites.guild.vanityURLCode) { //if it doesn't match what we stored:
