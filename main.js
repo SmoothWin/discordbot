@@ -37,6 +37,20 @@ client.on('ready', () => {
         }
 })
 
+client.on('guildMemberRemove', async (member) =>{
+    console.log("ok")
+    sqlCon.query({ // in order to set the onserver to false when the user leaves
+        sql: 'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true',
+        timeout: 10000
+    }, [member.user.id], (err, result)=>{
+        if(err) return
+        console.log(result)
+    })
+    let invites = await member.guild.invites.fetch()
+    let filteredInvites = invites.filter(x=>x.inviter == member.user.id)
+    filteredInvites.forEach(x=>x.delete())
+})
+
 client.on('inviteCreate', (invite) => { //if someone creates an invite while bot is running, update store
     client.invites[invite.code] = invite.uses
 })
@@ -48,6 +62,19 @@ client.on('guildMemberAdd', async (member) => {
             if(guildInvites.uses != client.invites[guildInvites.code] && guildInvites.code != guildInvites.guild.vanityURLCode) { //if it doesn't match what we stored:
                 client.invites[guildInvites.code] = guildInvites.uses
                 inviterID = guildInvites.inviter.id;
+                sqlCon.query({
+                    sql:'SELECT * FROM invite WHERE invited = ? and onserver = true',
+                    timeout: 10000
+                },[member.user.id],(err, result)=>{
+                    if(err) return;
+                    console.log("duplicate rows: "+result.length)
+                    console.log(result[result.length - 1]['id'])
+                    if(result.length > 0){
+                        sqlCon.query({
+                            sql:'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true and id <= ?'
+                        },[member.user.id, result[result.length - 1]['id']])
+                    }
+                })
                 sqlCon.query({
                     sql: 'INSERT INTO invite (inviter, invited) VALUES (?,?)',
                     timeout: 10000
@@ -115,34 +142,22 @@ client.on('guildMemberAdd', async (member) => {
         // });
         
 })
-
-client.on('guildMemberRemove', async (member) =>{
-    console.log("ok")
-    sqlCon.query({ // in order to set the onserver to false when the user leaves
-        sql: 'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true',
-        timeout: 10000
-    }, [member.user.id], (err, result)=>{
-        if(err) return
-        console.log(result)
-    })
-    let invites = await member.guild.invites.fetch()
-    let filteredInvites = invites.filter(x=>x.inviter == member.user.id)
-    filteredInvites.forEach(x=>x.delete())
-})
-// client.on('messageCreate',async msg => {
-//     if(!msg.content.startsWith(prefix) || msg.author.bot) return;
-//     if(msg.channel.name != "claim-invites") return
-//     const userID = msg.author.id;
-//     const username = msg.author.username;
-//     const usertag = msg.author.tag;
-//     console.log("Message from user "+ usertag);
-//     const args = msg.content.slice(prefix.length).split(/ +/)
-//     args.shift();
-//     console.log(args)
-//     const command = args.shift().toLowerCase();
-//     if(command === 'inviterole'){
-//         let invites = await client.guilds.cache.get(msg.guild.id).invites.fetch()
-//         console.log(invites)
-//         client.commands.get('inviterole').execute(msg, invites, adventurerCount, maxAmountAdventurer, userID, username, usertag);
-//     }
-//   });
+client.on('messageCreate',async msg => {
+    if(!msg.content.startsWith(prefix) || msg.author.bot) return;
+    if(!msg.member.permissions.has('ADMINISTRATOR')) return;
+        console.log(msg.author.tag)
+    const args = msg.content.slice(prefix.length).split(/ +/)
+    let commandname = null;
+    let commandvalue = null;
+    args.shift(); //remove useless whitespace
+    console.log(args);
+    console.log(args.length);
+    if(args.length >= 1){
+        commandname = args.shift().toLowerCase();
+        console.log(commandname)
+    }
+    if(commandname === 'inviterole'){
+        console.log("bruh")
+        // client.commands.get('inviterole').execute(msg, invites, adventurerCount, maxAmountAdventurer, userID, username, usertag);
+    }
+  });
