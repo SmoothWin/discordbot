@@ -180,11 +180,14 @@ client.on('messageCreate',async msg => {
                 console.log(commandvalue)
             }
         }
+        if(commandname === 'invitelimit'){
+            msg.channel.send(`Invite Limit is ${explorerRequiredInviteCount}`)
+        }
         if(commandname === 'setinvitelimit'){
             if(commandvalue == null)return;
             let oldvalue = explorerRequiredInviteCount;
             explorerRequiredInviteCount = commandvalue;
-            msg.channel.send(`Invite Threshold changed from ${oldvalue} to ${explorerRequiredInviteCount} by <@${msg.member.id}>`)
+            msg.channel.send(`Invite Limit changed from ${oldvalue} to ${explorerRequiredInviteCount} by <@${msg.member.id}>`)
         }
         if(commandname === 'inviterole'){
             console.log("bruh")
