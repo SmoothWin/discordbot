@@ -4,10 +4,19 @@ const Discord = require('discord.js');
 const sqlCon = require('./dbConnection.js')
 const client = new Discord.Client({intents:["GUILDS","GUILD_MESSAGES", "GUILD_INVITES", "GUILD_MEMBERS"]})
 const prefix = "!cw"
-const explorerRequiredInviteCount = 1; //set to 20
+let explorerRequiredInviteCount = 1; //set to 20
 const validAccountThreshold = process.env.FRESH_THRESHOLD;
 client.login(process.env.TOKEN);
 const fs = require('fs');
+const util = require('util');
+
+const log_file = fs.createWriteStream(__dirname+'/error.log', {flags:'w'});
+const log_stdout = process.stdout;
+
+const logError = (e)=>{
+    log_file.write(util.format(e)+'\n')
+    log_stdout.write(util.format(e)+'\n')
+}
 
 client.commands = new Discord.Collection();
 
@@ -26,29 +35,34 @@ client.on('ready', () => {
     try{
         client.user.setActivity('Crypture World', {type:'PLAYING'})
     
-    client.guilds.cache.each(async guild => { //on bot start, fetch all guilds and fetch all invites to store
-        let guildInvites = await guild.invites.fetch()
-        guildInvites.map(x => {
-                client.invites[x.code] = x.uses
+        client.guilds.cache.each(async guild => { //on bot start, fetch all guilds and fetch all invites to store
+            let guildInvites = await guild.invites.fetch()
+            guildInvites.map(x => {
+                    client.invites[x.code] = x.uses
+            })
         })
-    })
-        }catch(e){
-            console.log(err)
-        }
+    }catch(err){
+        logError(err);
+        return err;
+    }
 })
 
 client.on('guildMemberRemove', async (member) =>{
-    console.log("ok")
-    sqlCon.query({ // in order to set the onserver to false when the user leaves
-        sql: 'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true',
-        timeout: 10000
-    }, [member.user.id], (err, result)=>{
-        if(err) return
-        console.log(result)
-    })
-    let invites = await member.guild.invites.fetch()
-    let filteredInvites = invites.filter(x=>x.inviter == member.user.id)
-    filteredInvites.forEach(x=>x.delete())
+    try{
+        console.log("ok")
+        sqlCon.query({ // in order to set the onserver to false when the user leaves
+            sql: 'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true',
+            timeout: 10000
+        }, [member.user.id], (err, result)=>{
+            if(err) return
+            console.log(result)
+        })
+        let invites = await member.guild.invites.fetch()
+        let filteredInvites = invites.filter(x=>x.inviter == member.user.id)
+        filteredInvites.forEach(x=>x.delete())
+    }catch(err){
+        logError(err)
+    }
 })
 
 client.on('inviteCreate', (invite) => { //if someone creates an invite while bot is running, update store
@@ -56,10 +70,11 @@ client.on('inviteCreate', (invite) => { //if someone creates an invite while bot
 })
 
 client.on('guildMemberAdd', async (member) => {
-    let invites = await member.guild.invites.fetch()
-    if(Date.now()-msg.member.user.createdTimestamp < validAccountThreshold) return;
-    let inviterID = null;
-    invites.map(guildInvites => { //get all guild invites
+    try{
+        let invites = await member.guild.invites.fetch()
+        if(Date.now()-member.user.createdTimestamp < validAccountThreshold) return;
+        let inviterID = null;
+        invites.map(guildInvites => { //get all guild invites
             if(guildInvites.uses != client.invites[guildInvites.code] && guildInvites.code != guildInvites.guild.vanityURLCode) { //if it doesn't match what we stored:
                 client.invites[guildInvites.code] = guildInvites.uses
                 inviterID = guildInvites.inviter.id;
@@ -69,7 +84,6 @@ client.on('guildMemberAdd', async (member) => {
                 },[member.user.id],(err, result)=>{
                     if(err) return;
                     console.log("duplicate rows: "+result.length)
-                    console.log(result[result.length - 1]['id'])
                     if(result.length > 0){
                         sqlCon.query({
                             sql:'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true and id <= ?'
@@ -95,8 +109,10 @@ client.on('guildMemberAdd', async (member) => {
                     if(err) return
                 })
             }
-    })
-    if(inviterID == null) return;
+        
+         
+        })
+        if(inviterID == null) return;
         const explorer = "EXPLORER";
         let inviteCount = 0;
         sqlCon.query({
@@ -129,7 +145,10 @@ client.on('guildMemberAdd', async (member) => {
                     return
                 })
                 
-            }
+        }
+    }catch(err){
+        logError(err)
+    }
         // let invitesJson = invites.toJSON()
         // let arrayofusers = []
         // invitesJson.forEach(i=>{
@@ -140,25 +159,39 @@ client.on('guildMemberAdd', async (member) => {
         // console.log(filteredarray)
         // filteredarray.forEach(user => {
         //     inviteCount += user['invites']
-        // });
-        
+        // })
 })
 client.on('messageCreate',async msg => {
-    if(!msg.content.startsWith(prefix) || msg.author.bot) return;
-    if(!msg.member.permissions.has('ADMINISTRATOR')) return;
-        console.log(msg.author.tag)
-    const args = msg.content.slice(prefix.length).split(/ +/)
-    let commandname = null;
-    let commandvalue = null;
-    args.shift(); //remove useless whitespace
-    console.log(args);
-    console.log(args.length);
-    if(args.length >= 1){
-        commandname = args.shift().toLowerCase();
-        console.log(commandname)
-    }
-    if(commandname === 'inviterole'){
-        console.log("bruh")
-        // client.commands.get('inviterole').execute(msg, invites, adventurerCount, maxAmountAdventurer, userID, username, usertag);
+    try{
+        if(!msg.content.startsWith(prefix) || msg.author.bot) return;
+        if(!msg.member.permissions.has('ADMINISTRATOR')) return;
+            console.log(msg.author.tag)
+        const args = msg.content.slice(prefix.length).split(/ +/)
+        let commandname = null;
+        let commandvalue = null;
+        args.shift(); //remove useless whitespace
+        console.log(args);
+        console.log(args.length);
+        if(args.length >= 1){
+            commandname = args.shift().toLowerCase();
+            console.log(commandname)
+            if(args.length >= 1){
+                commandvalue = args.shift().toLowerCase()
+                console.log(commandvalue)
+            }
+        }
+        if(commandname === 'setinvitelimit'){
+            if(commandvalue == null)return;
+            let oldvalue = explorerRequiredInviteCount;
+            explorerRequiredInviteCount = commandvalue;
+            msg.channel.send(`Invite Threshold changed from ${oldvalue} to ${explorerRequiredInviteCount} by <@${msg.member.id}>`)
+        }
+        if(commandname === 'inviterole'){
+            console.log("bruh")
+            return
+            // client.commands.get('inviterole').execute(msg, invites, adventurerCount, maxAmountAdventurer, userID, username, usertag);
+        }
+    }catch(err){
+        logError(err)
     }
   });
