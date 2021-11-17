@@ -180,6 +180,16 @@ client.on('messageCreate',async msg => {
                 console.log(commandvalue)
             }
         }
+        if(commandname === 'help'){
+            let embed = new Discord.MessageEmbed()
+            .setColor('#4cb563')
+            .setTitle('Help Menu')
+            .addFields(
+                {name:'!cw invitelimit', value:'Shows current invite limit for the role invite rotation'},
+                {name:'!cw setinvitelimit <value>', value:'Sets the invite limit for the role invite rotation'}
+                )
+            msg.channel.send({embeds:[embed]})
+        }
         if(commandname === 'invitelimit'){
             msg.channel.send(`Invite Limit is ${explorerRequiredInviteCount}`)
         }
@@ -189,11 +199,7 @@ client.on('messageCreate',async msg => {
             explorerRequiredInviteCount = commandvalue;
             msg.channel.send(`Invite Limit changed from ${oldvalue} to ${explorerRequiredInviteCount} by <@${msg.member.id}>`)
         }
-        if(commandname === 'inviterole'){
-            console.log("bruh")
-            return
-            // client.commands.get('inviterole').execute(msg, invites, adventurerCount, maxAmountAdventurer, userID, username, usertag);
-        }
+        
     }catch(err){
         logError(err)
     }
