@@ -3,7 +3,9 @@ require('dotenv').config()
 const Discord = require('discord.js');
 const sqlCon = require('./dbConnection.js')
 const client = new Discord.Client({intents:["GUILDS","GUILD_MESSAGES", "GUILD_INVITES", "GUILD_MEMBERS"]})
-const prefix = "!cw"
+const prefix = "!cw";
+const explorer = "Explorer";//role event role name
+const botChannelName = "crypture-bot";
 let explorerRequiredInviteCount = 1; //set to 20
 const validAccountThreshold = process.env.FRESH_THRESHOLD;
 client.login(process.env.TOKEN);
@@ -46,16 +48,25 @@ client.on('ready', () => {
         return err;
     }
 })
+client.on('guildMemberUpdate', (oldUser, newUser)=>{
+    const oldRole = oldUser.roles;
+    const newRole = newUser.roles;
+    const roleToMention = newUser.guild.roles.cache.find((r)=>r.name == explorer);
+    if(!oldRole.cache.has(roleToMention.id) && newRole.cache.has(roleToMention.id)){
+        const channel = newUser.guild.channels.cache.find(r=>r.name == botChannelName)
+        channel.send(`<@${newUser.user.id}> has obtained the ${explorer} role!`)
+    }
+})
 
 client.on('guildMemberRemove', async (member) =>{
     try{
-        console.log("ok")
+        // console.log("ok")
         sqlCon.query({ // in order to set the onserver to false when the user leaves
             sql: 'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true',
             timeout: 10000
         }, [member.user.id], (err, result)=>{
             if(err) return
-            console.log(result)
+            // console.log(result)
         })
         let invites = await member.guild.invites.fetch()
         let filteredInvites = invites.filter(x=>x.inviter == member.user.id)
@@ -83,7 +94,7 @@ client.on('guildMemberAdd', async (member) => {
                     timeout: 10000
                 },[member.user.id],(err, result)=>{
                     if(err) return;
-                    console.log("duplicate rows: "+result.length)
+                    // console.log("duplicate rows: "+result.length)
                     if(result.length > 0){
                         sqlCon.query({
                             sql:'UPDATE invite set onserver = FALSE WHERE invited = ? and onserver = true and id <= ?'
@@ -113,16 +124,15 @@ client.on('guildMemberAdd', async (member) => {
          
         })
         if(inviterID == null) return;
-        const explorer = "EXPLORER";
         let inviteCount = 0;
         sqlCon.query({
             sql:'SELECT invite_count FROM invite_count where discordid = ?',
             timeout:10000
         },[inviterID], async (err, result)=>{
             if(err) return
-            console.log(result[0])
+            // console.log(result[0])
             inviteCount = (typeof result[0] == "undefined")?null:result[0]['invite_count']
-            console.log(inviteCount)
+            // console.log(inviteCount)
         })
 
         let roleExplorer = member.guild.roles.cache.find(role => role.name === explorer)
@@ -137,9 +147,9 @@ client.on('guildMemberAdd', async (member) => {
                 }, [inviterID], (err, result)=>{
                     if(err) return;
                     let fakeInviteCount = result.length
-                    console.log("Invite Count: "+inviteCount)
-                    console.log("Fake Invite Count: "+fakeInviteCount)
-                    console.log(inviteCount-fakeInviteCount)
+                    // console.log("Invite Count: "+inviteCount)
+                    // console.log("Fake Invite Count: "+fakeInviteCount)
+                    // console.log(inviteCount-fakeInviteCount)
                     if((inviteCount-fakeInviteCount) >= explorerRequiredInviteCount )
                         user.roles.add(roleExplorer)
                     return
@@ -165,19 +175,19 @@ client.on('messageCreate',async msg => {
     try{
         if(!msg.content.startsWith(prefix) || msg.author.bot) return;
         if(!msg.member.permissions.has('ADMINISTRATOR')) return;
-            console.log(msg.author.tag)
+            // console.log(msg.author.tag)
         const args = msg.content.slice(prefix.length).split(/ +/)
         let commandname = null;
         let commandvalue = null;
         args.shift(); //remove useless whitespace
-        console.log(args);
-        console.log(args.length);
+        // console.log(args);
+        // console.log(args.length);
         if(args.length >= 1){
             commandname = args.shift().toLowerCase();
-            console.log(commandname)
+            // console.log(commandname)
             if(args.length >= 1){
                 commandvalue = args.shift().toLowerCase()
-                console.log(commandvalue)
+                // console.log(commandvalue)
             }
         }
         if(commandname === 'help'){
@@ -195,6 +205,10 @@ client.on('messageCreate',async msg => {
         }
         if(commandname === 'setinvitelimit'){
             if(commandvalue == null)return;
+            if(commandvalue < 1){
+                msg.channel.send(`Cannot set Invite Limit to a number below 1 <@${msg.member.id}>`)
+                return;
+            }
             let oldvalue = explorerRequiredInviteCount;
             explorerRequiredInviteCount = commandvalue;
             msg.channel.send(`Invite Limit changed from ${oldvalue} to ${explorerRequiredInviteCount} by <@${msg.member.id}>`)
